@@ -489,6 +489,7 @@
     const bw=board.clientWidth, bh=board.clientHeight;
     rod.x=Math.max(0,Math.min(rod.x, bw-rod.w));
     rod.y=Math.max(0,Math.min(rod.y, bh-RODH));
+    pushBelowOverlaps(rod);
     place(rod);
     checkCompletions();
     drag=null;
@@ -519,6 +520,21 @@
     if(snapped){
       snapSound();
       rod.el.classList.remove('snap'); void rod.el.offsetWidth; rod.el.classList.add('snap');
+    }
+  }
+
+  // if the dropped rod lands on top of another rod, move it down to the row below
+  function overlaps(a, b){
+    return a.x < b.x + b.w - 1 && a.x + a.w > b.x + 1 &&
+           a.y < b.y + RODH - 1 && a.y + RODH > b.y + 1;
+  }
+  function pushBelowOverlaps(rod){
+    const bh=board.clientHeight;
+    let hit;
+    while((hit = rods.find(o => o!==rod && overlaps(rod, o)))){
+      const ny = hit.y + RODH;
+      if(ny + RODH > bh) break;   // no room left below
+      rod.y = ny;
     }
   }
 
