@@ -33,6 +33,7 @@
     font-family:"Nunito",system-ui,sans-serif;
     color:var(--ink);
     background:#6E8AE8;
+    user-select:none;-webkit-user-select:none;
     overflow:hidden;
     touch-action:none;
   }
@@ -410,6 +411,7 @@
 
   function spawnFromTray(e, value){
     e.preventDefault();
+    if(drag) return;   // only one rod can be dragged at a time
     const r = board.getBoundingClientRect();
     const w = value*UNIT;
     let x = e.clientX - r.left - w/2;
@@ -431,7 +433,10 @@
     place(rod);
     board.appendChild(el);
     rods.push(rod);
-    el.addEventListener('pointerdown', e=>{ if(e.target===el||e.target.parentNode===el) beginDrag(rod,e,false); });
+    el.addEventListener('pointerdown', e=>{
+      if(drag) return;   // only one rod can be dragged at a time
+      if(e.target===el||e.target.parentNode===el){ e.preventDefault(); beginDrag(rod,e,false); }
+    });
     el.addEventListener('dblclick', ()=> removeRod(rod));
     hint.style.opacity='0';
     return rod;
@@ -452,17 +457,35 @@
   let drag=null;
   function beginDrag(rod, e, fresh){
     const r=board.getBoundingClientRect();
-    drag={rod, fresh, startX:rod.x, startY:rod.y, offX:(e.clientX-r.left)-rod.x, offY:(e.clientY-r.top)-rod.y};
+    drag={rod, fresh, pointerId:e.pointerId, startX:rod.x, startY:rod.y, offX:(e.clientX-r.left)-rod.x, offY:(e.clientY-r.top)-rod.y};
     if(fresh){ drag.offX=rod.w/2; drag.offY=RODH/2; }
     rod.el.classList.add('dragging');
     // bring to front
     board.appendChild(rod.el);
     window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp, {once:true});
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
+  }
+
+  function endDrag(){
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onCancel);
+    drag.rod.el.classList.remove('dragging');
+    drag=null;
+  }
+
+  // the browser aborted the drag (touch gesture, native drag...) -> undo it
+  function onCancel(e){
+    if(!drag || e.pointerId!==drag.pointerId) return;
+    const rod=drag.rod;
+    if(drag.fresh){ removeRod(rod); }
+    else { rod.x=drag.startX; rod.y=drag.startY; place(rod); }
+    endDrag();
   }
 
   function onMove(e){
-    if(!drag) return;
+    if(!drag || e.pointerId!==drag.pointerId) return;
     const r=board.getBoundingClientRect();
     let x=(e.clientX-r.left)-drag.offX;
     let y=(e.clientY-r.top)-drag.offY;
@@ -471,17 +494,17 @@
   }
 
   function onUp(e){
-    if(!drag) return;
-    window.removeEventListener('pointermove', onMove);
+    if(!drag || e.pointerId!==drag.pointerId) return;
     const rod=drag.rod;
-    rod.el.classList.remove('dragging');
+    const {fresh, startX, startY}=drag;
+    endDrag();
 
     // dropped over tray (only when it's open) -> delete
     const trayEl=document.getElementById('tray');
     const tray=trayEl.getBoundingClientRect();
     if(!trayEl.classList.contains('hidden') &&
        e.clientX>=tray.left && e.clientX<=tray.right && e.clientY>=tray.top && e.clientY<=tray.bottom){
-      removeRod(rod); drag=null; return;
+      removeRod(rod); return;
     }
 
     snapRod(rod);
@@ -491,13 +514,12 @@
     rod.y=Math.max(0,Math.min(rod.y, bh-RODH));
     if(!pushBelowOverlaps(rod)){
       // no free row below -> the drop is not allowed
-      if(drag.fresh){ removeRod(rod); }
-      else { rod.x=drag.startX; rod.y=drag.startY; place(rod); }
-      drag=null; return;
+      if(fresh){ removeRod(rod); }
+      else { rod.x=startX; rod.y=startY; place(rod); }
+      return;
     }
     place(rod);
     checkCompletions();
-    drag=null;
   }
 
   function snapRod(rod){
