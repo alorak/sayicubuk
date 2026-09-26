@@ -452,7 +452,7 @@
   let drag=null;
   function beginDrag(rod, e, fresh){
     const r=board.getBoundingClientRect();
-    drag={rod, offX:(e.clientX-r.left)-rod.x, offY:(e.clientY-r.top)-rod.y};
+    drag={rod, fresh, startX:rod.x, startY:rod.y, offX:(e.clientX-r.left)-rod.x, offY:(e.clientY-r.top)-rod.y};
     if(fresh){ drag.offX=rod.w/2; drag.offY=RODH/2; }
     rod.el.classList.add('dragging');
     // bring to front
@@ -489,7 +489,12 @@
     const bw=board.clientWidth, bh=board.clientHeight;
     rod.x=Math.max(0,Math.min(rod.x, bw-rod.w));
     rod.y=Math.max(0,Math.min(rod.y, bh-RODH));
-    pushBelowOverlaps(rod);
+    if(!pushBelowOverlaps(rod)){
+      // no free row below -> the drop is not allowed
+      if(drag.fresh){ removeRod(rod); }
+      else { rod.x=drag.startX; rod.y=drag.startY; place(rod); }
+      drag=null; return;
+    }
     place(rod);
     checkCompletions();
     drag=null;
@@ -523,7 +528,8 @@
     }
   }
 
-  // if the dropped rod lands on top of another rod, move it down to the row below
+  // if the dropped rod lands on top of another rod, move it down to the row below;
+  // returns false when there is no room left below
   function overlaps(a, b){
     return a.x < b.x + b.w - 1 && a.x + a.w > b.x + 1 &&
            a.y < b.y + RODH - 1 && a.y + RODH > b.y + 1;
@@ -533,9 +539,10 @@
     let hit;
     while((hit = rods.find(o => o!==rod && overlaps(rod, o)))){
       const ny = hit.y + RODH;
-      if(ny + RODH > bh) break;   // no room left below
+      if(ny + RODH > bh) return false;
       rod.y = ny;
     }
+    return true;
   }
 
   /* ---------- completion detection ---------- */
