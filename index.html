@@ -85,9 +85,15 @@
     background:#fff;color:#5D7CF0;border:2px solid #E4E9FF;
     display:flex;align-items:center;justify-content:center;
     box-shadow:0 3px 8px rgba(40,30,90,.28);
+    position:relative;
   }
   #settingsBtn:hover{background:#EEF2FF}
   #settingsBtn svg{display:block}
+  #settingsBtn.holding{animation:teacherHold 1.2s linear forwards}
+  @keyframes teacherHold{
+    0%{box-shadow:0 3px 8px rgba(40,30,90,.28),0 0 0 0 rgba(255,201,75,.85)}
+    100%{box-shadow:0 3px 8px rgba(40,30,90,.28),0 0 0 7px rgba(255,201,75,.15)}
+  }
 
   /* ---- Main ---- */
   main{flex:1;display:flex;min-height:0}
@@ -97,7 +103,7 @@
   .board{
     position:relative;height:100%;width:100%;border-radius:16px;overflow:hidden;
     background:
-      radial-gradient(circle at 1px 1px,var(--paper-line) 1.4px,transparent 1.6px) 0 0/22px 22px,
+      radial-gradient(circle at 1.5px 1.5px,var(--paper-line) 1.5px,transparent 1.7px) 0 0/var(--unit) var(--rodh),
       var(--paper);
     box-shadow:inset 0 0 0 3px #fff, inset 0 0 0 6px #d9d0bd, 0 10px 30px rgba(0,0,0,.4);
     touch-action:none;
@@ -107,8 +113,48 @@
     flex-direction:column;gap:8px;text-align:center;padding:24px;
     color:#b7ad97;pointer-events:none;transition:opacity .4s;
   }
-  .hint .big{font-family:"Baloo 2";font-weight:600;font-size:clamp(18px,3vw,26px);color:#a99e86}
-  .hint .sm{font-size:14px;font-weight:700;max-width:380px}
+  .hint .big{font-family:"Baloo 2";font-weight:700;font-size:clamp(18px,3vw,26px);color:#746d83}
+  .hint .sm{font-size:14px;font-weight:700;max-width:460px;color:#8b8398}
+  .onboarding-steps{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:5px}
+  .onboarding-step{
+    display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;
+    background:rgba(255,255,255,.78);border:1px solid #e7e1f4;
+    box-shadow:0 3px 10px rgba(80,65,120,.08);font-size:12px;font-weight:800;color:#675f78;
+  }
+  .onboarding-step b{
+    display:grid;place-items:center;width:22px;height:22px;border-radius:50%;
+    background:#8E6FE4;color:#fff;font-family:"Baloo 2";font-size:13px;
+  }
+  .task-card{
+    position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:18;
+    display:flex;align-items:center;gap:9px;padding:8px 13px;border-radius:999px;
+    background:rgba(255,255,255,.92);border:1px solid #e7e1f4;
+    box-shadow:0 5px 16px rgba(69,57,112,.12);pointer-events:none;
+    font-size:13px;font-weight:800;color:#655d78;white-space:nowrap;
+  }
+  .task-card strong{font-family:"Baloo 2";font-size:14px;color:#5D4AA5}
+  .delete-zone{
+    position:absolute;left:50%;bottom:14px;transform:translate(-50%,18px) scale(.96);
+    z-index:70;padding:10px 16px;border-radius:999px;background:#fff1f3;color:#bf4960;
+    border:2px dashed #ef91a3;box-shadow:0 6px 18px rgba(110,45,60,.12);
+    font-weight:900;font-size:13px;opacity:0;pointer-events:none;transition:.16s;
+  }
+  .board.show-delete .delete-zone{opacity:1;transform:translate(-50%,0) scale(1)}
+  .delete-zone.hot{background:#ff708d;color:#fff;border-color:#fff;transform:translate(-50%,0) scale(1.05)}
+  .feedback-toast{
+    position:fixed;left:50%;bottom:22px;transform:translate(-50%,14px);
+    z-index:500;background:#2b2550;color:#fff;padding:10px 15px;border-radius:999px;
+    font-weight:800;font-size:13px;box-shadow:0 9px 24px rgba(24,18,50,.28);
+    opacity:0;pointer-events:none;transition:.2s;
+  }
+  .feedback-toast.show{opacity:1;transform:translate(-50%,0)}
+  .rod.invalid{animation:invalidDrop .34s ease}
+  @keyframes invalidDrop{
+    0%,100%{transform:translateX(0)}
+    25%{transform:translateX(-8px)}
+    50%{transform:translateX(8px)}
+    75%{transform:translateX(-4px)}
+  }
 
   /* ---- Rod (shared) ---- */
   .rod{
@@ -144,9 +190,14 @@
     transition:transform .34s cubic-bezier(.4,0,.2,1), opacity .22s ease;
   }
   .tray.hidden{transform:translateX(calc(100% + 28px));opacity:0;pointer-events:none}
+  .tray-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
   .tray h2{
-    font-family:"Baloo 2";color:var(--cream);font-size:15px;font-weight:600;
-    margin:0 0 10px;opacity:.9;letter-spacing:.4px;
+    font-family:"Baloo 2";color:var(--cream);font-size:15px;font-weight:700;
+    margin:0;opacity:.95;letter-spacing:.4px;
+  }
+  .tray-inline-close{
+    display:none;width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.3);
+    background:rgba(255,255,255,.16);color:#fff;font-size:18px;font-weight:900;cursor:pointer;
   }
   .tray-close{
     position:absolute;top:calc(var(--tray-inset) + 20px);
@@ -256,6 +307,50 @@
   .modal-btn.ok:hover{filter:brightness(1.05)}
   .modal-btn:focus-visible,.toggle:focus-visible,.modal-x:focus-visible{outline:3px solid var(--gold-2);outline-offset:2px}
 
+  /* ---- Responsive tray: bottom sheet on tablets/phones ---- */
+  @media (max-width:900px){
+    header{padding:9px 12px;gap:10px}
+    .brand h1{font-size:20px}
+    .stars{padding:6px 11px;gap:6px}
+    .stars .jar{font-size:21px}
+    .stars .count{font-size:22px}
+    #settingsBtn{width:40px;height:40px}
+    .board-wrap{padding:10px}
+    .board{border-radius:14px}
+    .tray{
+      position:absolute;left:14px;right:14px;top:auto;bottom:14px;width:auto;
+      max-height:min(46vh,420px);border-radius:20px;padding:12px 12px 14px;
+      transform:translateY(0);overflow:auto;overscroll-behavior:contain;
+    }
+    .tray.hidden{transform:translateY(calc(100% + 30px));opacity:0;pointer-events:none}
+    .tray-close{display:none}
+    .tray-inline-close{display:grid;place-items:center;flex:none}
+    .tray-open{
+      top:auto;right:14px;bottom:14px;border-radius:14px;padding:11px 14px;
+      box-shadow:0 5px 16px rgba(60,40,120,.32);
+    }
+    .staircase{align-items:center}
+    .task-card{top:12px;max-width:calc(100% - 24px);white-space:normal;text-align:center}
+    .hint{padding:74px 20px 72px}
+    .onboarding-steps{max-width:330px}
+    .delete-zone{bottom:12px}
+  }
+
+  @media (max-width:520px){
+    .brand h1{font-size:18px}
+    .stars{padding:5px 9px}
+    .stars .jar{font-size:19px}
+    .stars .count{font-size:20px}
+    .tray{left:8px;right:8px;bottom:8px;max-height:48vh}
+    .tray-open{right:8px;bottom:8px}
+    .onboarding-step{font-size:11px;padding:6px 8px}
+    .task-card{font-size:11px;padding:7px 10px}
+    .setting-row{align-items:flex-start;flex-direction:column}
+    .size-group{width:100%}
+    .size-opt{flex:1}
+    .modal-actions{flex-direction:column}
+  }
+
   @media (prefers-reduced-motion: reduce){
     *{animation-duration:.001ms!important;transition-duration:.001ms!important}
   }
@@ -272,7 +367,7 @@
       <span class="jar">⭐</span>
       <span class="count" id="starCount">0</span>
     </div>
-    <button class="btn" id="settingsBtn" title="Ayarlar" aria-label="Ayarlar">
+    <button class="btn" id="settingsBtn" title="Öğretmen ayarları — açmak için basılı tut" aria-label="Öğretmen ayarları, açmak için basılı tutun">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.5.5 0 00.12-.61l-1.92-3.32a.5.5 0 00-.59-.22l-2.39.96a7.03 7.03 0 00-1.62-.94l-.36-2.54a.5.5 0 00-.5-.42h-3.84a.5.5 0 00-.5.42l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96a.5.5 0 00-.59.22L2.74 8.87a.5.5 0 00.12.61l2.03 1.58c-.05.3-.07.62-.07.94 0 .32.02.64.07.94l-2.03 1.58a.5.5 0 00-.12.61l1.92 3.32c.13.22.39.3.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.2.08.46 0 .59-.22l1.92-3.32a.5.5 0 00-.12-.61l-2.03-1.58zM12 15.6A3.6 3.6 0 1112 8.4a3.6 3.6 0 010 7.2z"/></svg>
     </button>
   </header>
@@ -280,13 +375,24 @@
   <main>
     <div class="board-wrap">
       <div class="board" id="board">
+        <div class="task-card" id="taskCard"><strong>Görev</strong><span>Bir çubuğu, altına iki parça yerleştirerek tamamla ⭐</span></div>
         <div class="hint" id="hint">
-          <div class="big">Çubukları buraya sürükle</div>
-          <div class="sm">Bir hedef çubuğun (örn. 5) altını tam dolduran parçalarla (3 + 2) doldur → yıldız kazan!</div>
+          <div class="big">Bir sayı yapalım!</div>
+          <div class="sm">Tepsiden bir hedef seç, sonra altını toplamı aynı olan iki çubukla doldur.</div>
+          <div class="onboarding-steps" aria-hidden="true">
+            <span class="onboarding-step"><b>1</b> Hedefi sürükle</span>
+            <span class="onboarding-step"><b>2</b> İki parça ekle</span>
+            <span class="onboarding-step"><b>3</b> Yıldızı kazan</span>
+          </div>
         </div>
+        <div class="delete-zone" id="deleteZone">🗑️ Silmek için buraya bırak</div>
       </div>
 
       <aside class="tray" id="tray">
+        <div class="tray-head">
+          <h2>Çubuklar</h2>
+          <button class="tray-inline-close" id="closeTrayInline" title="Tepsiyi kapat" aria-label="Tepsiyi kapat">⌄</button>
+        </div>
         <div class="staircase" id="staircase"></div>
       </aside>
       <button class="tray-close" id="closeTray" title="Tepsiyi kapat" aria-label="Tepsiyi kapat">›</button>
@@ -294,6 +400,8 @@
       <button class="tray-open" id="openTray" title="Tepsiyi aç" aria-label="Tepsiyi aç">‹ Çubuklar</button>
     </div>
   </main>
+
+  <div class="feedback-toast" id="feedbackToast" role="status" aria-live="polite"></div>
 
   <div class="modal-overlay" id="modal">
     <div class="modal-card" role="dialog" aria-modal="true" aria-label="Ayarlar">
@@ -351,6 +459,16 @@
   const staircase = document.getElementById('staircase');
   const starCount = document.getElementById('starCount');
   const starBox = document.getElementById('starBox');
+  const deleteZone = document.getElementById('deleteZone');
+  const feedbackToast = document.getElementById('feedbackToast');
+
+  let toastTimer=null;
+  function showFeedback(message){
+    feedbackToast.textContent=message;
+    feedbackToast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>feedbackToast.classList.remove('show'),1500);
+  }
 
   let rods = [];        // {id,value,x,y,w,el,completed}
   let stars = 0;
@@ -402,10 +520,15 @@
   // tray rods are shown at the same real size as rods on the board
   const PAIR_GAP=4, TRAY_PAD=14, TRAY_BORDER=3;
   function sizeTray(){
-    staircase.querySelectorAll('.src').forEach(s=>{ s.style.width=(s.dataset.value*UNIT)+'px'; });
+    const compact = window.matchMedia('(max-width:900px)').matches;
+    const available = Math.max(260, window.innerWidth - 64);
+    const trayUnit = compact ? Math.min(UNIT, Math.floor((available-PAIR_GAP)/10)) : UNIT;
+    staircase.querySelectorAll('.src').forEach(s=>{ s.style.width=(s.dataset.value*trayUnit)+'px'; });
     const w = 10*UNIT + PAIR_GAP + 2*TRAY_PAD + 2*TRAY_BORDER;
     document.documentElement.style.setProperty('--tray-w', w+'px');
   }
+  document.documentElement.style.setProperty('--unit', UNIT+'px');
+  document.documentElement.style.setProperty('--rodh', RODH+'px');
   sizeTray();
 
   function spawnFromTray(e, value){
@@ -455,10 +578,16 @@
     drag={rod, fresh, startX:rod.x, startY:rod.y, offX:(e.clientX-r.left)-rod.x, offY:(e.clientY-r.top)-rod.y};
     if(fresh){ drag.offX=rod.w/2; drag.offY=RODH/2; }
     rod.el.classList.add('dragging');
+    if(!fresh) board.classList.add('show-delete');
     // bring to front
     board.appendChild(rod.el);
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp, {once:true});
+  }
+
+  function pointInside(el, e){
+    const r=el.getBoundingClientRect();
+    return e.clientX>=r.left && e.clientX<=r.right && e.clientY>=r.top && e.clientY<=r.bottom;
   }
 
   function onMove(e){
@@ -468,6 +597,7 @@
     let y=(e.clientY-r.top)-drag.offY;
     drag.rod.x=x; drag.rod.y=y;
     place(drag.rod);
+    if(!drag.fresh) deleteZone.classList.toggle('hot', pointInside(deleteZone,e));
   }
 
   function onUp(e){
@@ -475,13 +605,25 @@
     window.removeEventListener('pointermove', onMove);
     const rod=drag.rod;
     rod.el.classList.remove('dragging');
+    board.classList.remove('show-delete');
+    deleteZone.classList.remove('hot');
 
-    // dropped over tray (only when it's open) -> delete
+    // Existing rods get an explicit visible delete target while dragging.
+    if(!drag.fresh && pointInside(deleteZone,e)){
+      removeRod(rod);
+      showFeedback('Çubuk silindi');
+      beep(300,0.06,'triangle',0.08);
+      drag=null; return;
+    }
+
+    // Dropping a fresh rod back over the tray cancels it.
     const trayEl=document.getElementById('tray');
     const tray=trayEl.getBoundingClientRect();
     if(!trayEl.classList.contains('hidden') &&
        e.clientX>=tray.left && e.clientX<=tray.right && e.clientY>=tray.top && e.clientY<=tray.bottom){
-      removeRod(rod); drag=null; return;
+      removeRod(rod);
+      showFeedback('Çubuk tepsiye geri bırakıldı');
+      drag=null; return;
     }
 
     snapRod(rod);
@@ -490,9 +632,16 @@
     rod.x=Math.max(0,Math.min(rod.x, bw-rod.w));
     rod.y=Math.max(0,Math.min(rod.y, bh-RODH));
     if(!pushBelowOverlaps(rod)){
-      // no free row below -> the drop is not allowed
-      if(drag.fresh){ removeRod(rod); }
-      else { rod.x=drag.startX; rod.y=drag.startY; place(rod); }
+      // No free row below: explain the rejected drop instead of silently reverting.
+      beep(220,0.09,'sawtooth',0.07);
+      showFeedback('Burada yer yok — başka bir yere dene');
+      if(drag.fresh){
+        rod.el.classList.add('invalid');
+        setTimeout(()=>removeRod(rod),260);
+      } else {
+        rod.el.classList.remove('invalid'); void rod.el.offsetWidth; rod.el.classList.add('invalid');
+        rod.x=drag.startX; rod.y=drag.startY; place(rod);
+      }
       drag=null; return;
     }
     place(rod);
@@ -632,7 +781,31 @@
   function openSettings(){ modal.classList.add('show'); }
   function hideSettings(){ modal.classList.remove('show'); }
 
-  settingsBtn.addEventListener('click', openSettings);
+  // Teacher guard: settings require a deliberate long press on touch/mouse.
+  let settingsHoldTimer=null, settingsOpenedByHold=false;
+  function cancelSettingsHold(showHint=false){
+    clearTimeout(settingsHoldTimer);
+    settingsHoldTimer=null;
+    settingsBtn.classList.remove('holding');
+    if(showHint && !settingsOpenedByHold) showFeedback('Öğretmen ayarları için basılı tut');
+  }
+  settingsBtn.addEventListener('pointerdown', e=>{
+    if(e.button!==undefined && e.button!==0) return;
+    settingsOpenedByHold=false;
+    settingsBtn.classList.add('holding');
+    settingsHoldTimer=setTimeout(()=>{
+      settingsOpenedByHold=true;
+      settingsBtn.classList.remove('holding');
+      openSettings();
+      beep(700,0.07,'sine',0.1);
+    },1200);
+  });
+  settingsBtn.addEventListener('pointerup', ()=>cancelSettingsHold(true));
+  settingsBtn.addEventListener('pointercancel', ()=>cancelSettingsHold(false));
+  settingsBtn.addEventListener('pointerleave', ()=>{ if(settingsHoldTimer) cancelSettingsHold(false); });
+  settingsBtn.addEventListener('keydown', e=>{
+    if(e.key==='Enter' || e.key===' '){ e.preventDefault(); openSettings(); }
+  });
   closeModal.addEventListener('click', hideSettings);
   modal.addEventListener('click', e=>{ if(e.target===modal) hideSettings(); });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') hideSettings(); });
@@ -660,6 +833,7 @@
     const nh = Math.round(nu*1.1);
     const ry = nh/RODH;
     UNIT = nu; RODH = nh;
+    document.documentElement.style.setProperty('--unit', UNIT+'px');
     document.documentElement.style.setProperty('--rodh', RODH+'px');
     for(const r of rods){
       r.x = Math.round(r.x*rx);
@@ -692,13 +866,16 @@
   const trayEl=document.getElementById('tray');
   const openBtn=document.getElementById('openTray');
   const closeBtn=document.getElementById('closeTray');
+  const closeBtnInline=document.getElementById('closeTrayInline');
   function setTray(open){
     trayEl.classList.toggle('hidden', !open);
     openBtn.style.display = open ? 'none' : 'flex';
     beep(open?620:440,0.06,'sine',0.1);
   }
   closeBtn.addEventListener('click', ()=> setTray(false));
+  closeBtnInline.addEventListener('click', ()=> setTray(false));
   openBtn.addEventListener('click', ()=> setTray(true));
+  window.addEventListener('resize', sizeTray);
 
   // prevent scroll/gesture interference on the board
   board.addEventListener('touchmove', e=>e.preventDefault(), {passive:false});
