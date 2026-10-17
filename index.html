@@ -108,6 +108,8 @@
     box-shadow:inset 0 0 0 3px #fff, inset 0 0 0 6px #d9d0bd, 0 10px 30px rgba(0,0,0,.4);
     touch-action:none;
   }
+  /* Keep the held rod visible while it crosses the tray or board edge. */
+  .board.drag-in-progress{overflow:visible}
   .hint{
     position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     flex-direction:column;gap:8px;text-align:center;padding:24px;
@@ -162,7 +164,7 @@
     display:flex;align-items:center;justify-content:center;
     font-family:"Baloo 2",sans-serif;font-weight:700;
     font-size:calc(var(--rodh) * 0.6);line-height:1;
-    color:#fff;user-select:none;cursor:grab;
+    color:#fff;user-select:none;-webkit-user-select:none;cursor:grab;touch-action:none;
     background:var(--top,#ccc);
     border:2px solid var(--edge,#000);
     transition:box-shadow .12s,transform .12s;
@@ -235,6 +237,7 @@
     font-family:"Baloo 2";font-weight:700;font-size:calc(var(--rodh) * 0.6);line-height:1;color:#fff;
     background:var(--top,#ccc);border:2px solid var(--edge,#000);
     transition:transform .1s;
+    touch-action:none;user-select:none;-webkit-user-select:none;
   }
   .src.light{color:#2c2417}
   .src:hover{transform:translateY(-1px)}
@@ -532,13 +535,16 @@
   sizeTray();
 
   function spawnFromTray(e, value){
+    if(drag || !e.isPrimary || (e.button!==undefined && e.button!==0)) return;
     e.preventDefault();
     const r = board.getBoundingClientRect();
+    const source = e.currentTarget.getBoundingClientRect();
     const w = value*UNIT;
-    let x = e.clientX - r.left - w/2;
-    let y = e.clientY - r.top - RODH/2;
-    const rod = addRod(value, x, y);
-    beginDrag(rod, e, true);
+    // Keep the exact spot the child touched, even when the tray rods are scaled.
+    const gripX = Math.max(0, Math.min(w, (e.clientX-source.left)/source.width*w));
+    const gripY = Math.max(0, Math.min(RODH, e.clientY-source.top));
+    const rod = addRod(value, e.clientX-r.left-gripX, e.clientY-r.top-gripY);
+    beginDrag(rod, e, true, {x:gripX, y:gripY});
   }
 
   /* ---------- rods ---------- */
@@ -573,16 +579,25 @@
 
   /* ---------- dragging ---------- */
   let drag=null;
-  function beginDrag(rod, e, fresh){
+  function beginDrag(rod, e, fresh, grip=null){
+    if(drag || !e.isPrimary || (e.button!==undefined && e.button!==0)) return;
+    e.preventDefault();
     const r=board.getBoundingClientRect();
-    drag={rod, fresh, startX:rod.x, startY:rod.y, offX:(e.clientX-r.left)-rod.x, offY:(e.clientY-r.top)-rod.y};
-    if(fresh){ drag.offX=rod.w/2; drag.offY=RODH/2; }
+    drag={
+      rod, fresh, pointerId:e.pointerId, captureEl:e.currentTarget,
+      startX:rod.x, startY:rod.y,
+      offX:grip ? grip.x : e.clientX-r.left-rod.x,
+      offY:grip ? grip.y : e.clientY-r.top-rod.y
+    };
     rod.el.classList.add('dragging');
+    board.classList.add('drag-in-progress');
     if(!fresh) board.classList.add('show-delete');
-    // bring to front
+    // Bring to front and capture the finger even after it leaves the tray.
     board.appendChild(rod.el);
     window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp, {once:true});
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
+    try{ e.currentTarget.setPointerCapture(e.pointerId); }catch(err){}
   }
 
   function pointInside(el, e){
@@ -591,29 +606,55 @@
   }
 
   function onMove(e){
-    if(!drag) return;
+    if(!drag || e.pointerId!==drag.pointerId) return;
+    if(e.cancelable) e.preventDefault();
     const r=board.getBoundingClientRect();
-    let x=(e.clientX-r.left)-drag.offX;
-    let y=(e.clientY-r.top)-drag.offY;
-    drag.rod.x=x; drag.rod.y=y;
+    drag.rod.x=e.clientX-r.left-drag.offX;
+    drag.rod.y=e.clientY-r.top-drag.offY;
     place(drag.rod);
     if(!drag.fresh) deleteZone.classList.toggle('hot', pointInside(deleteZone,e));
   }
 
-  function onUp(e){
-    if(!drag) return;
+  function finishDrag(){
+    const current=drag;
+    drag=null;
     window.removeEventListener('pointermove', onMove);
-    const rod=drag.rod;
-    rod.el.classList.remove('dragging');
-    board.classList.remove('show-delete');
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onCancel);
+    board.classList.remove('drag-in-progress', 'show-delete');
     deleteZone.classList.remove('hot');
+    current.rod.el.classList.remove('dragging');
+    try{
+      if(current.captureEl.hasPointerCapture(current.pointerId)){
+        current.captureEl.releasePointerCapture(current.pointerId);
+      }
+    }catch(err){}
+    return current;
+  }
+
+  function onCancel(e){
+    if(!drag || e.pointerId!==drag.pointerId) return;
+    const current=finishDrag();
+    if(current.fresh) removeRod(current.rod);
+    else {
+      current.rod.x=current.startX;
+      current.rod.y=current.startY;
+      place(current.rod);
+    }
+  }
+
+  function onUp(e){
+    if(!drag || e.pointerId!==drag.pointerId) return;
+    onMove(e); // Do not lose the last finger movement before release.
+    const current=finishDrag();
+    const rod=current.rod;
 
     // Existing rods get an explicit visible delete target while dragging.
-    if(!drag.fresh && pointInside(deleteZone,e)){
+    if(!current.fresh && pointInside(deleteZone,e)){
       removeRod(rod);
       showFeedback('Çubuk silindi');
       beep(300,0.06,'triangle',0.08);
-      drag=null; return;
+      return;
     }
 
     // Dropping a fresh rod back over the tray cancels it.
@@ -623,30 +664,29 @@
        e.clientX>=tray.left && e.clientX<=tray.right && e.clientY>=tray.top && e.clientY<=tray.bottom){
       removeRod(rod);
       showFeedback('Çubuk tepsiye geri bırakıldı');
-      drag=null; return;
+      return;
     }
 
     snapRod(rod);
     // clamp inside board
     const bw=board.clientWidth, bh=board.clientHeight;
-    rod.x=Math.max(0,Math.min(rod.x, bw-rod.w));
-    rod.y=Math.max(0,Math.min(rod.y, bh-RODH));
+    rod.x=Math.max(0,Math.min(rod.x, Math.max(0,bw-rod.w)));
+    rod.y=Math.max(0,Math.min(rod.y, Math.max(0,bh-RODH)));
     if(!pushBelowOverlaps(rod)){
       // No free row below: explain the rejected drop instead of silently reverting.
       beep(220,0.09,'sawtooth',0.07);
       showFeedback('Burada yer yok — başka bir yere dene');
-      if(drag.fresh){
+      if(current.fresh){
         rod.el.classList.add('invalid');
         setTimeout(()=>removeRod(rod),260);
       } else {
         rod.el.classList.remove('invalid'); void rod.el.offsetWidth; rod.el.classList.add('invalid');
-        rod.x=drag.startX; rod.y=drag.startY; place(rod);
+        rod.x=current.startX; rod.y=current.startY; place(rod);
       }
-      drag=null; return;
+      return;
     }
     place(rod);
     checkCompletions();
-    drag=null;
   }
 
   function snapRod(rod){
