@@ -80,6 +80,14 @@
   .btn:hover{background:rgba(255,255,255,.16)}
   .btn:active{transform:translateY(1px)}
   .btn:focus-visible{outline:3px solid var(--gold-2);outline-offset:2px}
+  #clearAllBtn{
+    display:flex;align-items:center;justify-content:center;gap:7px;
+    min-height:44px;padding:8px 13px;border-radius:999px;
+    background:#fff1f3;color:#b43d59;border:2px solid #ffd5de;
+    box-shadow:0 3px 8px rgba(40,30,90,.18);white-space:nowrap;
+  }
+  #clearAllBtn:hover{background:#ffe3e9}
+  #clearAllBtn svg{flex:none}
   #settingsBtn{
     width:44px;height:44px;padding:0;border-radius:50%;
     background:#fff;color:#5D7CF0;border:2px solid #E4E9FF;
@@ -306,6 +314,14 @@
   .modal-actions .modal-btn{flex:1;width:auto;margin-top:0}
   .modal-btn.ok{background:var(--good);color:#fff}
   .modal-btn.ok:hover{filter:brightness(1.05)}
+  .modal-btn.secondary{background:#f0ecff;color:#6754a5}
+  .modal-btn.secondary:hover{background:#e8e1fc}
+  .confirm-card{text-align:center}
+  .confirm-icon{
+    display:grid;place-items:center;width:60px;height:60px;margin:0 auto 12px;
+    border-radius:50%;background:#fff1f3;color:#bf4960;font-size:30px;
+  }
+  .confirm-card .sub{font-size:14px;line-height:1.6;margin:6px 0 20px}
   .modal-btn:focus-visible,.toggle:focus-visible,.modal-x:focus-visible{outline:3px solid var(--gold-2);outline-offset:2px}
 
   /* ---- Responsive tray: bottom sheet on tablets/phones ---- */
@@ -316,6 +332,7 @@
     .stars .jar{font-size:21px}
     .stars .count{font-size:22px}
     #settingsBtn{width:40px;height:40px}
+    #clearAllBtn{min-height:40px}
     .board-wrap{padding:10px}
     .board{border-radius:14px}
     .tray{
@@ -337,6 +354,8 @@
 
   @media (max-width:520px){
     .brand h1{font-size:18px}
+    #clearAllBtn{width:40px;height:40px;padding:0}
+    #clearAllBtn .clear-label{display:none}
     .stars{padding:5px 9px}
     .stars .jar{font-size:19px}
     .stars .count{font-size:20px}
@@ -365,6 +384,12 @@
       <span class="jar">⭐</span>
       <span class="count" id="starCount">0</span>
     </div>
+    <button class="btn" id="clearAllBtn" title="Tahtadaki tüm çubukları sil" aria-label="Tamamını sil">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 6h18M8 6V4h8v2M5 6l1 15h12l1-15M10 10v7M14 10v7"/>
+      </svg>
+      <span class="clear-label">Tamamını sil</span>
+    </button>
     <button class="btn" id="settingsBtn" title="Öğretmen ayarları — açmak için basılı tut" aria-label="Öğretmen ayarları, açmak için basılı tutun">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.5.5 0 00.12-.61l-1.92-3.32a.5.5 0 00-.59-.22l-2.39.96a7.03 7.03 0 00-1.62-.94l-.36-2.54a.5.5 0 00-.5-.42h-3.84a.5.5 0 00-.5.42l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96a.5.5 0 00-.59.22L2.74 8.87a.5.5 0 00.12.61l2.03 1.58c-.05.3-.07.62-.07.94 0 .32.02.64.07.94l-2.03 1.58a.5.5 0 00-.12.61l1.92 3.32c.13.22.39.3.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.2.08.46 0 .59-.22l1.92-3.32a.5.5 0 00-.12-.61l-2.03-1.58zM12 15.6A3.6 3.6 0 1112 8.4a3.6 3.6 0 010 7.2z"/></svg>
     </button>
@@ -421,9 +446,19 @@
           <button class="size-opt" data-size="large">Büyük</button>
         </div>
       </div>
+      <button class="modal-btn ok" id="okBtn">Tamam</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="confirmClearModal">
+    <div class="modal-card confirm-card" role="alertdialog" aria-modal="true"
+         aria-labelledby="confirmClearTitle" aria-describedby="confirmClearText">
+      <div class="confirm-icon" aria-hidden="true">🗑️</div>
+      <h3 id="confirmClearTitle">Tüm çubuklar silinsin mi?</h3>
+      <p class="sub" id="confirmClearText">Tahtadaki bütün çubuklar silinecek. Bu işlem geri alınamaz. Kazandığın yıldızlar korunacak.</p>
       <div class="modal-actions">
-        <button class="modal-btn ok" id="okBtn">Tamam</button>
-        <button class="modal-btn danger" id="clearAll">🧹 Tahtayı temizle</button>
+        <button class="modal-btn secondary" id="cancelClearBtn">Vazgeç</button>
+        <button class="modal-btn danger" id="confirmClearBtn">Evet, sil</button>
       </div>
     </div>
   </div>
@@ -816,7 +851,10 @@
   const settingsBtn=document.getElementById('settingsBtn');
   const closeModal=document.getElementById('closeModal');
   const soundToggle=document.getElementById('soundToggle');
-  const clearAll=document.getElementById('clearAll');
+  const clearAllBtn=document.getElementById('clearAllBtn');
+  const confirmClearModal=document.getElementById('confirmClearModal');
+  const cancelClearBtn=document.getElementById('cancelClearBtn');
+  const confirmClearBtn=document.getElementById('confirmClearBtn');
 
   function openSettings(){ modal.classList.add('show'); }
   function hideSettings(){ modal.classList.remove('show'); }
@@ -848,7 +886,36 @@
   });
   closeModal.addEventListener('click', hideSettings);
   modal.addEventListener('click', e=>{ if(e.target===modal) hideSettings(); });
-  document.addEventListener('keydown', e=>{ if(e.key==='Escape') hideSettings(); });
+  function openClearConfirmation(){
+    confirmClearModal.classList.add('show');
+    cancelClearBtn.focus();
+  }
+  function hideClearConfirmation(){
+    if(!confirmClearModal.classList.contains('show')) return;
+    confirmClearModal.classList.remove('show');
+    clearAllBtn.focus();
+  }
+  clearAllBtn.addEventListener('click', openClearConfirmation);
+  cancelClearBtn.addEventListener('click', hideClearConfirmation);
+  confirmClearBtn.addEventListener('click', ()=>{
+    clearBoard();
+    hideClearConfirmation();
+    showFeedback('Tahtadaki tüm çubuklar silindi');
+  });
+  confirmClearModal.addEventListener('click', e=>{
+    if(e.target===confirmClearModal) hideClearConfirmation();
+  });
+  confirmClearModal.addEventListener('keydown', e=>{
+    if(e.key!=='Tab') return;
+    if(e.shiftKey && document.activeElement===cancelClearBtn){
+      e.preventDefault(); confirmClearBtn.focus();
+    } else if(!e.shiftKey && document.activeElement===confirmClearBtn){
+      e.preventDefault(); cancelClearBtn.focus();
+    }
+  });
+  document.addEventListener('keydown', e=>{
+    if(e.key==='Escape'){ hideSettings(); hideClearConfirmation(); }
+  });
 
   soundToggle.addEventListener('click', ()=>{
     soundOn=!soundOn;
@@ -857,10 +924,6 @@
     if(soundOn) beep(660,0.06,'sine',0.1);
   });
 
-  clearAll.addEventListener('click', ()=>{
-    clearBoard();
-    hideSettings();
-  });
   document.getElementById('okBtn').addEventListener('click', hideSettings);
 
   // ---- rod size ----
