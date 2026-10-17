@@ -127,22 +127,20 @@
     display:grid;place-items:center;width:22px;height:22px;border-radius:50%;
     background:#8E6FE4;color:#fff;font-family:"Baloo 2";font-size:13px;
   }
-  .task-card{
-    position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:18;
-    display:flex;align-items:center;gap:9px;padding:8px 13px;border-radius:999px;
-    background:rgba(255,255,255,.92);border:1px solid #e7e1f4;
-    box-shadow:0 5px 16px rgba(69,57,112,.12);pointer-events:none;
-    font-size:13px;font-weight:800;color:#655d78;white-space:nowrap;
-  }
-  .task-card strong{font-family:"Baloo 2";font-size:14px;color:#5D4AA5}
+  /* Full-width delete target reaches the bottom edge, including tablet safe areas. */
   .delete-zone{
-    position:absolute;left:50%;bottom:14px;transform:translate(-50%,18px) scale(.96);
-    z-index:70;padding:10px 16px;border-radius:999px;background:#fff1f3;color:#bf4960;
-    border:2px dashed #ef91a3;box-shadow:0 6px 18px rgba(110,45,60,.12);
-    font-weight:900;font-size:13px;opacity:0;pointer-events:none;transition:.16s;
+    position:absolute;left:0;right:0;bottom:0;height:clamp(90px,14vh,128px);
+    z-index:70;display:flex;align-items:center;justify-content:center;
+    padding:14px 18px max(14px,env(safe-area-inset-bottom));
+    border-radius:18px 18px 0 0;
+    background:linear-gradient(180deg,#fff4f6,#ffe2e8);color:#b83c5c;
+    border:2px dashed #ef91a3;border-bottom:0;
+    box-shadow:0 -6px 24px rgba(110,45,60,.16);
+    font-weight:900;font-size:clamp(13px,2vw,17px);text-align:center;
+    opacity:0;pointer-events:none;transition:opacity .15s,background .15s;
   }
-  .board.show-delete .delete-zone{opacity:1;transform:translate(-50%,0) scale(1)}
-  .delete-zone.hot{background:#ff708d;color:#fff;border-color:#fff;transform:translate(-50%,0) scale(1.05)}
+  .board.show-delete + .delete-zone{opacity:1}
+  .delete-zone.hot{background:#ff708d;color:#fff;border-color:#fff}
   .feedback-toast{
     position:fixed;left:50%;bottom:22px;transform:translate(-50%,14px);
     z-index:500;background:#2b2550;color:#fff;padding:10px 15px;border-radius:999px;
@@ -333,10 +331,8 @@
       box-shadow:0 5px 16px rgba(60,40,120,.32);
     }
     .staircase{align-items:center}
-    .task-card{top:12px;max-width:calc(100% - 24px);white-space:normal;text-align:center}
-    .hint{padding:74px 20px 72px}
+    .hint{padding:24px 20px 72px}
     .onboarding-steps{max-width:330px}
-    .delete-zone{bottom:12px}
   }
 
   @media (max-width:520px){
@@ -347,7 +343,6 @@
     .tray{left:8px;right:8px;bottom:8px;max-height:48vh}
     .tray-open{right:8px;bottom:8px}
     .onboarding-step{font-size:11px;padding:6px 8px}
-    .task-card{font-size:11px;padding:7px 10px}
     .setting-row{align-items:flex-start;flex-direction:column}
     .size-group{width:100%}
     .size-opt{flex:1}
@@ -378,7 +373,6 @@
   <main>
     <div class="board-wrap">
       <div class="board" id="board">
-        <div class="task-card" id="taskCard"><strong>Görev</strong><span>Bir çubuğu, altına iki parça yerleştirerek tamamla ⭐</span></div>
         <div class="hint" id="hint">
           <div class="big">Bir sayı yapalım!</div>
           <div class="sm">Tepsiden bir hedef seç, sonra altını toplamı aynı olan iki çubukla doldur.</div>
@@ -388,8 +382,8 @@
             <span class="onboarding-step"><b>3</b> Yıldızı kazan</span>
           </div>
         </div>
-        <div class="delete-zone" id="deleteZone">🗑️ Silmek için buraya bırak</div>
       </div>
+      <div class="delete-zone" id="deleteZone">🗑️ Silmek için aşağı bırak</div>
 
       <aside class="tray" id="tray">
         <div class="tray-head">
@@ -605,6 +599,12 @@
     return e.clientX>=r.left && e.clientX<=r.right && e.clientY>=r.top && e.clientY<=r.bottom;
   }
 
+  // Treat every point below the top edge as a deletion, even at the screen edge.
+  function overDeleteZone(e){
+    const r=deleteZone.getBoundingClientRect();
+    return e.clientX>=r.left && e.clientX<=r.right && e.clientY>=r.top;
+  }
+
   function onMove(e){
     if(!drag || e.pointerId!==drag.pointerId) return;
     if(e.cancelable) e.preventDefault();
@@ -612,7 +612,7 @@
     drag.rod.x=e.clientX-r.left-drag.offX;
     drag.rod.y=e.clientY-r.top-drag.offY;
     place(drag.rod);
-    if(!drag.fresh) deleteZone.classList.toggle('hot', pointInside(deleteZone,e));
+    if(!drag.fresh) deleteZone.classList.toggle('hot', overDeleteZone(e));
   }
 
   function finishDrag(){
@@ -650,7 +650,7 @@
     const rod=current.rod;
 
     // Existing rods get an explicit visible delete target while dragging.
-    if(!current.fresh && pointInside(deleteZone,e)){
+    if(!current.fresh && overDeleteZone(e)){
       removeRod(rod);
       showFeedback('Çubuk silindi');
       beep(300,0.06,'triangle',0.08);
